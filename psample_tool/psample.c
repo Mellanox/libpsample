@@ -124,12 +124,14 @@ enum command {
 static struct argp_option options[] = {
 	{"list-groups", 'l', 0, 0, "list the current groups" },
 	{"monitor", 'm', 0, 0, "monitor sample packets (default)" },
+	{"group", 'g', "GROUP_NUM", 0, "for monitor, filter by group" },
 	{"verbose", 'v', 0, 0, "print the packet data" },
 	{ 0 }
 };
 
 struct psample_tool_options {
 	enum command cmd;
+	int group;
 	bool verbose;
 };
 
@@ -150,6 +152,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 	case 'v':
 		arguments->verbose = true;
 		break;
+	case 'g':
+		arguments->group = atoi(arg);
+		break;
 	default:
 		return ARGP_ERR_UNKNOWN;
 	}
@@ -168,6 +173,7 @@ int main(int argc, char **argv)
 	int err;
 
 	arguments.cmd = COMMAND_MONITOR;
+	arguments.group = -1;
 	argp_parse(&argp, argc, argv, 0, 0, &arguments);
 
 	psample_set_log_level(PSAMPLE_LOG_INFO);
@@ -176,10 +182,14 @@ int main(int argc, char **argv)
 	if (!handle)
 		return -1;
 
-	if (arguments.cmd == COMMAND_MONITOR)
+	if (arguments.cmd == COMMAND_MONITOR) {
+		if (arguments.group != -1)
+			psample_bind_group(handle, arguments.group);
+
 		psample_dispatch(handle, show_message_cb, &arguments.verbose);
-	else
+	} else {
 		psample_group_foreach(handle, show_group_cb, &first_run);
+	}
 
 	psample_close(handle);
 
