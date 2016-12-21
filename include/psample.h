@@ -66,6 +66,8 @@ void psample_set_log_func(logfn func);
 struct psample_handle *psample_open();
 void psample_close(struct psample_handle *handle);
 
+int psample_bind_group(struct psample_handle *handle, int group);
+
 int psample_dispatch(struct psample_handle *handle, psample_msg_cb msg_cb,
 		     void *data);
 

@@ -32,9 +32,14 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include <libmnl/libmnl.h>
 #include <linux/psample.h>
 #include <linux/genetlink.h>
+#include <linux/filter.h>
+#include <arpa/inet.h>
 #include <errno.h>
 #include <psample.h>
 #include "mnlg.h"
@@ -46,6 +51,8 @@
 #define LOG_INFO(...)  LOG(PSAMPLE_LOG_INFO, __VA_ARGS__)
 #define LOG_WARN(...)  LOG(PSAMPLE_LOG_WARN, __VA_ARGS__)
 #define LOG_ERR(...)   LOG(PSAMPLE_LOG_ERR, __VA_ARGS__)
+
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 static void logfn_stderr(enum psample_log_level level, const char *file,
 			 int line, const char *fn, const char *format,
@@ -61,6 +68,7 @@ struct psample_msg {
 struct psample_handle {
 	struct mnlg_socket *sample_nlh;
 	struct mnlg_socket *control_nlh;
+	struct sock_fprog sample_filter_fprog;
 };
 
 void psample_set_log_level(enum psample_log_level level)
@@ -120,7 +128,7 @@ struct psample_handle *psample_open()
 	struct psample_handle *handle;
 	int err;
 
-	handle = (struct psample_handle *)malloc(sizeof(*handle));
+	handle = (struct psample_handle *)calloc(sizeof(*handle), 1);
 	if (!handle) {
 		LOG_ERR("Could not allocate memory");
 		return NULL;
@@ -162,6 +170,9 @@ void psample_close(struct psample_handle *handle)
 
 	mnlg_socket_close(handle->sample_nlh);
 	mnlg_socket_close(handle->control_nlh);
+
+	if (handle->sample_filter_fprog.filter)
+		free(handle->sample_filter_fprog.filter);
 	free(handle);
 }
 
@@ -223,6 +234,68 @@ static int psample_event_handler(const struct nlmsghdr *nlhdr, void *data)
 		return MNL_CB_STOP;
 
 	return MNL_CB_OK;
+}
+
+static struct sock_filter psample_group_filter[] = {
+	BPF_STMT(BPF_LD + BPF_IMM, sizeof(struct nlmsghdr) +
+				   sizeof(struct genlmsghdr)),
+	BPF_STMT(BPF_LDX + BPF_IMM, PSAMPLE_ATTR_SAMPLE_GROUP),
+	BPF_STMT(BPF_LD + BPF_ABS, SKF_AD_OFF + SKF_AD_NLATTR),
+	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, 0, 4, 0),		 /* pass */
+	BPF_STMT(BPF_MISC + BPF_TAX, 0),
+	BPF_STMT(BPF_LD + BPF_W + BPF_IND, 4),
+
+	/* This command should be edited with the right group value */
+#define FILTER_GROUP_COMMAND 6
+	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, 0x38000000, 1, 0),	 /* pass */
+
+	/* drop */
+	BPF_STMT(BPF_RET + BPF_K, (u_int) 0),
+
+	/* pass */
+	BPF_STMT(BPF_RET + BPF_K, (u_int) -1),
+};
+
+int psample_bind_group(struct psample_handle *handle, int group)
+{
+	struct sock_fprog *fprog;
+	int err;
+	int fd;
+
+	if (!handle) {
+		LOG_ERR("Called with invalid handle");
+		return -EINVAL;
+	}
+
+	fd = mnlg_socket_get_fd(handle->sample_nlh);
+
+	fprog = &handle->sample_filter_fprog;
+	if (fprog->filter) {
+		err = setsockopt(fd, SOL_SOCKET, SO_DETACH_FILTER,
+				 fprog, sizeof(*fprog));
+		if (err) {
+			LOG_ERR("Could not detach filter prog: %s",
+				strerror(errno));
+			return -errno;
+		}
+
+		free(fprog->filter);
+	}
+
+	fprog->filter = malloc(sizeof(psample_group_filter));
+	memcpy(fprog->filter, psample_group_filter,
+	       sizeof(psample_group_filter));
+	fprog->filter[FILTER_GROUP_COMMAND].k = ntohl(group);
+	fprog->len = ARRAY_SIZE(psample_group_filter);
+
+	err = setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, fprog,
+			 sizeof(*fprog));
+	if (err) {
+		LOG_ERR("Could not attach filter prog: %s", strerror(errno));
+		return -errno;
+	}
+
+	return 0;
 }
 
 int psample_dispatch(struct psample_handle *handle, psample_msg_cb msg_cb,
