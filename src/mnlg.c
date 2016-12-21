@@ -188,6 +188,11 @@ int mnlg_socket_group_add(struct mnlg_socket *nlg, const char *group_name)
 	return 0;
 }
 
+int mnlg_socket_get_fd(struct mnlg_socket *nlg)
+{
+	return mnl_socket_get_fd(nlg->nl);
+}
+
 static int get_family_id_attr_cb(const struct nlattr *attr, void *data)
 {
 	const struct nlattr **tb = data;
