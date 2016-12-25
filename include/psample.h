@@ -69,7 +69,7 @@ void psample_close(struct psample_handle *handle);
 int psample_bind_group(struct psample_handle *handle, int group);
 
 int psample_dispatch(struct psample_handle *handle, psample_msg_cb msg_cb,
-		     void *data);
+		     void *data, bool block);
 
 int psample_group_foreach(struct psample_handle *handle,
 			  psample_group_cb group_cb, void *data);

@@ -298,8 +298,28 @@ int psample_bind_group(struct psample_handle *handle, int group)
 	return 0;
 }
 
+static int psample_set_blocking(struct psample_handle *handle, bool block)
+{
+	int fd;
+	int flags;
+
+	fd = mnlg_socket_get_fd(handle->sample_nlh);
+	flags = fcntl(fd, F_GETFL);
+	if (!block)
+		flags |= O_NONBLOCK;
+	else
+		flags &= ~O_NONBLOCK;
+
+	if (fcntl(fd, F_SETFL, flags) < 0) {
+		LOG_ERR("Could not set O_NONBLOCK: %s", strerror(errno));
+		return -1;
+	}
+
+	return 0;
+}
+
 int psample_dispatch(struct psample_handle *handle, psample_msg_cb msg_cb,
-		     void *data)
+		     void *data, bool block)
 {
 	struct psample_event_handler_data event_handler_data;
 	int err;
@@ -312,11 +332,14 @@ int psample_dispatch(struct psample_handle *handle, psample_msg_cb msg_cb,
 	event_handler_data.cb = msg_cb;
 	event_handler_data.cb_data = data;
 
+	psample_set_blocking(handle, block);
 	err = mnlg_socket_recv_run(handle->sample_nlh, psample_event_handler,
 				   &event_handler_data);
 	if (err < 0) {
-		LOG_ERR("Could not run");
-		return -errno;
+		if (errno != EWOULDBLOCK || block) {
+			LOG_ERR("Could not recv: %s", strerror(errno));
+			return -errno;
+		}
 	}
 
 	return event_handler_data.cb_retval;
