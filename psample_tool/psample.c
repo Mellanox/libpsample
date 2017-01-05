@@ -187,7 +187,7 @@ int main(int argc, char **argv)
 			psample_bind_group(handle, arguments.group);
 
 		psample_dispatch(handle, show_message_cb, &arguments.verbose,
-				 true);
+				 NULL, NULL, true);
 	} else {
 		psample_group_foreach(handle, show_group_cb, &first_run);
 	}

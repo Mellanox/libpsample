@@ -38,6 +38,7 @@
 #include <linux/types.h>
 #include <linux/psample.h>
 
+struct psample_config;
 struct psample_msg;
 
 struct psample_group {
@@ -55,6 +56,8 @@ enum psample_log_level {
 };
 
 typedef int (*psample_msg_cb)(const struct psample_msg *msg, void *data);
+typedef int (*psample_config_cb)(const struct psample_config *config,
+				 void *data);
 typedef int (*psample_group_cb)(const struct psample_group *group, void *data);
 typedef void (*logfn)(enum psample_log_level, const char *file, int line,
 		      const char *fn, const char *format, va_list args);
@@ -69,11 +72,15 @@ void psample_close(struct psample_handle *handle);
 int psample_bind_group(struct psample_handle *handle, int group);
 
 int psample_dispatch(struct psample_handle *handle, psample_msg_cb msg_cb,
-		     void *data, bool block);
+		     void *msg_data, psample_config_cb config_cb,
+		     void *config_data, bool block);
 
 int psample_group_foreach(struct psample_handle *handle,
 			  psample_group_cb group_cb, void *data);
 
+/**
+ * psample_msg access functions
+ */
 bool psample_msg_group_exist(const struct psample_msg *msg);
 bool psample_msg_rate_exist(const struct psample_msg *msg);
 bool psample_msg_iif_exist(const struct psample_msg *msg);
@@ -90,5 +97,17 @@ __u32 psample_msg_origsize(const struct psample_msg *msg);
 __u32 psample_msg_seq(const struct psample_msg *msg);
 __u32 psample_msg_data_len(const struct psample_msg *msg);
 __u8 *psample_msg_data(const struct psample_msg *msg);
+
+/**
+ * psample_config access function
+ */
+bool psample_config_group_exist(const struct psample_config *config);
+bool psample_config_group_seq_exist(const struct psample_config *config);
+bool psample_config_group_refcount_exist(const struct psample_config *config);
+
+__u8 psample_config_cmd(const struct psample_config *config);
+__u32 psample_config_group(const struct psample_config *config);
+__u32 psample_config_group_seq(const struct psample_config *config);
+__u32 psample_config_group_refcount(const struct psample_config *config);
 
 #endif /* __PSAMPLE_H__ */

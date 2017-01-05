@@ -65,6 +65,11 @@ struct psample_msg {
 	struct nlattr **tb;
 };
 
+struct psample_config {
+	__u8 cmd;
+	struct nlattr **tb;
+};
+
 struct psample_handle {
 	struct mnlg_socket *sample_nlh;
 	struct mnlg_socket *control_nlh;
@@ -143,9 +148,18 @@ struct psample_handle *psample_open()
 	}
 
 	err = mnlg_socket_group_add(handle->sample_nlh,
+				    PSAMPLE_NL_MCGRP_CONFIG_NAME);
+	if (err < 0) {
+		LOG_ERR("Could not bind to config multicast group");
+		mnlg_socket_close(handle->sample_nlh);
+		free(handle);
+		return NULL;
+	}
+
+	err = mnlg_socket_group_add(handle->sample_nlh,
 				    PSAMPLE_NL_MCGRP_SAMPLE_NAME);
 	if (err < 0) {
-		LOG_ERR("Could not bind to group multicast group");
+		LOG_ERR("Could not bind to sample multicast group");
 		mnlg_socket_close(handle->sample_nlh);
 		free(handle);
 		return NULL;
@@ -213,22 +227,39 @@ static int attr_cb(const struct nlattr *attr, void *data)
 }
 
 struct psample_event_handler_data {
-	psample_msg_cb cb;
-	void *cb_data;
+	psample_msg_cb msg_cb;
+	psample_config_cb config_cb;
+	void *config_cb_data;
+	void *msg_cb_data;
 	int cb_retval;
 };
 
 static int psample_event_handler(const struct nlmsghdr *nlhdr, void *data)
 {
 	struct psample_event_handler_data *event_handler_data = data;
+	struct genlmsghdr *genl = mnl_nlmsg_get_payload(nlhdr);
 	struct nlattr *tb[PSAMPLE_ATTR_MAX + 1] = {};
-	struct psample_msg msg;
 	int ret;
 
 	mnl_attr_parse(nlhdr, sizeof(struct genlmsghdr), attr_cb, tb);
 
-	msg.tb = tb;
-	ret = event_handler_data->cb(&msg, event_handler_data->cb_data);
+	if ((genl->cmd == PSAMPLE_CMD_SAMPLE) && event_handler_data->msg_cb) {
+		void *cb_data = event_handler_data->msg_cb_data;
+		struct psample_msg msg;
+
+		msg.tb = tb;
+		ret = event_handler_data->msg_cb(&msg, cb_data);
+	} else if (event_handler_data->config_cb) {
+		void *cb_data = event_handler_data->config_cb_data;
+		struct psample_config config;
+
+		config.tb = tb;
+		config.cmd = genl->cmd;
+		ret = event_handler_data->config_cb(&config, cb_data);
+	} else {
+		return MNL_CB_OK;
+	}
+
 	event_handler_data->cb_retval = ret;
 	if (ret != 0)
 		return MNL_CB_STOP;
@@ -319,7 +350,8 @@ static int psample_set_blocking(struct psample_handle *handle, bool block)
 }
 
 int psample_dispatch(struct psample_handle *handle, psample_msg_cb msg_cb,
-		     void *data, bool block)
+		     void *msg_data, psample_config_cb config_cb,
+		     void *config_data, bool block)
 {
 	struct psample_event_handler_data event_handler_data;
 	int err;
@@ -329,8 +361,10 @@ int psample_dispatch(struct psample_handle *handle, psample_msg_cb msg_cb,
 		return -ENOMEM;
 	}
 
-	event_handler_data.cb = msg_cb;
-	event_handler_data.cb_data = data;
+	event_handler_data.msg_cb = msg_cb;
+	event_handler_data.msg_cb_data = msg_data;
+	event_handler_data.config_cb = config_cb;
+	event_handler_data.config_cb_data = config_data;
 
 	psample_set_blocking(handle, block);
 	err = mnlg_socket_recv_run(handle->sample_nlh, psample_event_handler,
@@ -480,4 +514,39 @@ __u32 psample_msg_data_len(const struct psample_msg *msg)
 __u8 *psample_msg_data(const struct psample_msg *msg)
 {
 	return mnl_attr_get_payload(msg->tb[PSAMPLE_ATTR_DATA]);
+}
+
+bool psample_config_group_exist(const struct psample_config *config)
+{
+	return config->tb[PSAMPLE_ATTR_SAMPLE_GROUP];
+}
+
+bool psample_config_group_seq_exist(const struct psample_config *config)
+{
+	return config->tb[PSAMPLE_ATTR_GROUP_SEQ];
+}
+
+bool psample_config_group_refcount_exist(const struct psample_config *config)
+{
+	return config->tb[PSAMPLE_ATTR_GROUP_REFCOUNT];
+}
+
+__u8 psample_config_cmd(const struct psample_config *config)
+{
+	return config->cmd;
+}
+
+__u32 psample_config_group(const struct psample_config *config)
+{
+	return mnl_attr_get_u32(config->tb[PSAMPLE_ATTR_SAMPLE_GROUP]);
+}
+
+__u32 psample_config_group_seq(const struct psample_config *config)
+{
+	return mnl_attr_get_u32(config->tb[PSAMPLE_ATTR_GROUP_SEQ]);
+}
+
+__u32 psample_config_group_refcount(const struct psample_config *config)
+{
+	return mnl_attr_get_u32(config->tb[PSAMPLE_ATTR_GROUP_REFCOUNT]);
 }
