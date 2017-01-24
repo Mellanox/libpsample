@@ -116,6 +116,31 @@ static int show_message_cb(const struct psample_msg *msg, void *data)
 	return 0;
 }
 
+static int show_config_cb(const struct psample_config *config, void *data)
+{
+	bool verbose = *(bool *) data;
+
+	switch (psample_config_cmd(config)) {
+	case PSAMPLE_CMD_NEW_GROUP:
+		printf("created ");
+		break;
+	case PSAMPLE_CMD_DEL_GROUP:
+		printf("deleted ");
+		break;
+	default:
+		return 0;
+	}
+
+	if (psample_config_group_exist(config))
+		printf("group %d ", psample_config_group(config));
+	if (psample_config_group_seq_exist(config))
+		printf("with current seq %d ",
+		       psample_config_group_seq(config));
+
+	printf("\n");
+	return 0;
+}
+
 enum command {
 	COMMAND_LIST_GROUPS,
 	COMMAND_MONITOR,
@@ -124,6 +149,10 @@ enum command {
 static struct argp_option options[] = {
 	{"list-groups", 'l', 0, 0, "list the current groups" },
 	{"monitor", 'm', 0, 0, "monitor sample packets (default)" },
+	{"no-config", 'c', 0, 0,
+			"when monitoring, don't show config notifications" },
+	{"no-sample", 's', 0, 0,
+			"when monitoring, don't show sample notifications" },
 	{"group", 'g', "GROUP_NUM", 0, "for monitor, filter by group" },
 	{"verbose", 'v', 0, 0, "print the packet data" },
 	{ 0 }
@@ -133,6 +162,8 @@ struct psample_tool_options {
 	enum command cmd;
 	int group;
 	bool verbose;
+	bool no_config;
+	bool no_sample;
 };
 
 static error_t parse_opt(int key, char *arg, struct argp_state *state)
@@ -144,6 +175,14 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 
 	switch (key) {
 	case 'l':
+		if (arguments->no_config) {
+			printf("Cant put both no-config and list-groups\n");
+			argp_usage(state);
+		}
+		if (arguments->no_sample) {
+			printf("Cant put both no-sample and list-groups\n");
+			argp_usage(state);
+		}
 		arguments->cmd = COMMAND_LIST_GROUPS;
 		break;
 	case 'm':
@@ -154,6 +193,28 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 		break;
 	case 'g':
 		arguments->group = atoi(arg);
+		break;
+	case 'c':
+		if (arguments->cmd == COMMAND_LIST_GROUPS) {
+			printf("Cant put both no-config and list-groups\n");
+			argp_usage(state);
+		}
+		if (arguments->no_sample) {
+			printf("Cant put both no-sample and no-config\n");
+			argp_usage(state);
+		}
+		arguments->no_config = true;
+		break;
+	case 's':
+		if (arguments->cmd == COMMAND_LIST_GROUPS) {
+			printf("Cant put both no-sample and list-groups\n");
+			argp_usage(state);
+		}
+		if (arguments->no_config) {
+			printf("Cant put both no-sample and no-config\n");
+			argp_usage(state);
+		}
+		arguments->no_sample = true;
 		break;
 	default:
 		return ARGP_ERR_UNKNOWN;
@@ -186,8 +247,16 @@ int main(int argc, char **argv)
 		if (arguments.group != -1)
 			psample_bind_group(handle, arguments.group);
 
-		psample_dispatch(handle, show_message_cb, &arguments.verbose,
-				 NULL, NULL, true);
+		if (arguments.no_sample)
+			psample_dispatch(handle, NULL, NULL, show_config_cb,
+					 &arguments.verbose, true);
+		else if (arguments.no_config)
+			psample_dispatch(handle, show_message_cb,
+					 &arguments.verbose, NULL, NULL, true);
+		else
+			psample_dispatch(handle, show_message_cb,
+					 &arguments.verbose, show_config_cb,
+					 &arguments.verbose, true);
 	} else {
 		psample_group_foreach(handle, show_group_cb, &first_run);
 	}
