@@ -1,0 +1,98 @@
+.TH "Packet sample tool" 8 "2 Feb 2017" "libpsample" "Linux"
+
+.SH NAME
+psample - tool for interacting with packet sampling netlink channel
+.SH SYNOPSIS
+.in +8
+.ti -8
+
+.BR psample " [ " --monitor " ] [ " -v " ] [ " --no-config " ]  ["
+.BR --no-sample " ] [ " --group
+.I GROUP_NUM
+.BR "]"
+.ti -8
+
+.BR psample " " --list-groups
+.ti -8
+
+.SH DESCRIPTION
+The
+.B psample
+netlink channel is a generic netlink channel dedicated to packet sampling. The
+netlink channel can be configured by the
+.B tc
+tool to sample packets matching classifier with certain rate to a certain
+.B psample-group
+(see
+.BR tc-sample "(8))."
+
+The
+.B psample
+tool is used to interact with the psample netlink channel and can either be used
+in
+.B monitor
+mode as presented in the first form above, which makes it output all
+configuration events and samples taken on the system, or in
+.B list-groups
+mode as presented in the second form above, which make it list all current
+sample groups in the system.
+
+In
+.B monitor
+mode, the tool will output either configuration events, which currently consists
+of addition and deletion of sample groups, or the sample events which consists
+of the sampled packets and their metadata.
+
+.SH OPTIONS
+.TP
+.BI -m, " " --monitor
+Use the tool in monitor mode, which prints both config and sample events. This
+option is default
+
+.TP
+.BI -c, " " --no-config
+When on monitor mode, don't print config events
+
+.TP
+.BI -s, " " --no-sample
+When on monitor mode, don't print sample events
+
+.TP
+.BI -g, " " --group " GROUP"
+When on monitor mode, show only messages from
+.BI "" GROUP "."
+By default,
+monitor mode prints messages from all groups on the system
+
+.TP
+.BI -v, " " --verbose
+When on monitor mode, show more information about the sampled packets
+
+.TP
+.BI -l, " " --list-groups
+List all current groups in the system, their reference count and their current
+sequence number
+
+.SH EXAMPLES
+.EX
+# to monitor all sampled packets and config events
+psample
+
+# to filter sampled packets/config events by group 6
+psample --group 6
+
+# to monitor all sampled packets only
+psample --no-config
+
+# to monitor all config events only
+psample --no-sample
+
+# to show all current groups
+psample --list-groups
+
+.EE
+.RE
+.SH SEE ALSO
+.BR tc (8),
+.BR tc-sample (8)
+.BR genl (8)
