@@ -476,6 +476,31 @@ bool psample_msg_data_exist(const struct psample_msg *msg)
 	return msg->tb[PSAMPLE_ATTR_DATA];
 }
 
+bool psample_msg_out_tc_exist(const struct psample_msg *msg)
+{
+	return msg->tb[PSAMPLE_ATTR_OUT_TC];
+}
+
+bool psample_msg_out_tc_occ_exist(const struct psample_msg *msg)
+{
+	return msg->tb[PSAMPLE_ATTR_OUT_TC_OCC];
+}
+
+bool psample_msg_latency_exist(const struct psample_msg *msg)
+{
+	return msg->tb[PSAMPLE_ATTR_LATENCY];
+}
+
+bool psample_msg_timestamp_exist(const struct psample_msg *msg)
+{
+	return msg->tb[PSAMPLE_ATTR_TIMESTAMP];
+}
+
+bool psample_msg_proto_exist(const struct psample_msg *msg)
+{
+	return msg->tb[PSAMPLE_ATTR_PROTO];
+}
+
 __u32 psample_msg_group(const struct psample_msg *msg)
 {
 	return mnl_attr_get_u32(msg->tb[PSAMPLE_ATTR_SAMPLE_GROUP]);
@@ -514,6 +539,31 @@ __u32 psample_msg_data_len(const struct psample_msg *msg)
 __u8 *psample_msg_data(const struct psample_msg *msg)
 {
 	return mnl_attr_get_payload(msg->tb[PSAMPLE_ATTR_DATA]);
+}
+
+__u16 psample_msg_out_tc(const struct psample_msg *msg)
+{
+	return mnl_attr_get_u16(msg->tb[PSAMPLE_ATTR_OUT_TC]);
+}
+
+__u64 psample_msg_out_tc_occ(const struct psample_msg *msg)
+{
+	return mnl_attr_get_u64(msg->tb[PSAMPLE_ATTR_OUT_TC_OCC]);
+}
+
+__u64 psample_msg_latency(const struct psample_msg *msg)
+{
+	return mnl_attr_get_u64(msg->tb[PSAMPLE_ATTR_LATENCY]);
+}
+
+__u64 psample_msg_timestamp(const struct psample_msg *msg)
+{
+	return mnl_attr_get_u64(msg->tb[PSAMPLE_ATTR_TIMESTAMP]);
+}
+
+__u16 psample_msg_proto(const struct psample_msg *msg)
+{
+	return mnl_attr_get_u16(msg->tb[PSAMPLE_ATTR_PROTO]);
 }
 
 bool psample_config_group_exist(const struct psample_config *config)

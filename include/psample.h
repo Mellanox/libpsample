@@ -88,6 +88,11 @@ bool psample_msg_oif_exist(const struct psample_msg *msg);
 bool psample_msg_origsize_exist(const struct psample_msg *msg);
 bool psample_msg_seq_exist(const struct psample_msg *msg);
 bool psample_msg_data_exist(const struct psample_msg *msg);
+bool psample_msg_out_tc_exist(const struct psample_msg *msg);
+bool psample_msg_out_tc_occ_exist(const struct psample_msg *msg);
+bool psample_msg_latency_exist(const struct psample_msg *msg);
+bool psample_msg_timestamp_exist(const struct psample_msg *msg);
+bool psample_msg_proto_exist(const struct psample_msg *msg);
 
 __u32 psample_msg_group(const struct psample_msg *msg);
 __u32 psample_msg_rate(const struct psample_msg *msg);
@@ -97,6 +102,11 @@ __u32 psample_msg_origsize(const struct psample_msg *msg);
 __u32 psample_msg_seq(const struct psample_msg *msg);
 __u32 psample_msg_data_len(const struct psample_msg *msg);
 __u8 *psample_msg_data(const struct psample_msg *msg);
+__u16 psample_msg_out_tc(const struct psample_msg *msg);
+__u64 psample_msg_out_tc_occ(const struct psample_msg *msg);
+__u64 psample_msg_latency(const struct psample_msg *msg);
+__u64 psample_msg_timestamp(const struct psample_msg *msg);
+__u16 psample_msg_proto(const struct psample_msg *msg);
 
 /**
  * psample_config access function

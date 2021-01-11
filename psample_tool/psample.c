@@ -34,6 +34,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <argp.h>
+#include <time.h>
+#include <string.h>
+#include <inttypes.h>
 
 #define min(a, b) (((a) > (b)) ? (b) : (a))
 #define DIV_ROUND_UP(a, b) (((a) + (b) - 1) / (b))
@@ -104,6 +107,29 @@ static int show_message_cb(const struct psample_msg *msg, void *data)
 		printf("sample-rate %d ", psample_msg_rate(msg));
 	if (psample_msg_seq_exist(msg))
 		printf("seq %d ", psample_msg_seq(msg));
+	if (psample_msg_out_tc_exist(msg))
+		printf("out-tc %u ", psample_msg_out_tc(msg));
+	if (psample_msg_out_tc_occ_exist(msg))
+		printf("out-tc-occ %llu ", psample_msg_out_tc_occ(msg));
+	if (psample_msg_latency_exist(msg))
+		printf("latency %llu ", psample_msg_latency(msg));
+	if (psample_msg_timestamp_exist(msg)) {
+		time_t tv_sec;
+		struct tm *tm;
+		char *tstr;
+		__u64 ts;
+
+		ts = psample_msg_timestamp(msg);
+		tv_sec = ts / 1000000000;
+		tm = localtime(&tv_sec);
+
+		tstr = asctime(tm);
+		tstr[strlen(tstr) - 1] = 0;
+		printf("timestamp %s %09" PRId64 " nsec ", tstr,
+		       ts % 1000000000);
+	}
+	if (psample_msg_proto_exist(msg))
+		printf("protocol 0x%x ", psample_msg_proto(msg));
 
 	if (verbose && psample_msg_data_exist(msg)) {
 		int data_len = psample_msg_data_len(msg);
