@@ -113,6 +113,7 @@ static int show_message_cb(const struct psample_msg *msg, void *data)
 	}
 
 	printf("\n");
+	fflush(stdout);
 	return 0;
 }
 
