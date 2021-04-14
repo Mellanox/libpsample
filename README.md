@@ -7,6 +7,7 @@ The library allows to:
  - Get sampled packets.
  - Parse sampled packets
  - List current sample groups
+ - Write sampled packets to file
 
 In addition, the library contains an executable named 'psample' that provide
 those features in a command line executable.
@@ -50,6 +51,14 @@ Basic usage:
 
  # to show all current groups
  psample --list-groups
+
+ # to write packets to file
+ psample --write psample.pcap
+
+ # to write packets to stdout
+ psample --write -
+ This option is useful for piping the output to tshark to dissect packets:
+ psample --write - | tshark -r - -V
 ~~~
 
 ### Basic Library Usage
