@@ -29,6 +29,16 @@ struct mnlg_socket {
 	unsigned int portid;
 };
 
+char *mnlg_socket_buf_get(struct mnlg_socket *nlg)
+{
+	return nlg->buf;
+}
+
+uint32_t mnlg_socket_id_get(struct mnlg_socket *nlg)
+{
+	return nlg->id;
+}
+
 static struct nlmsghdr *__mnlg_msg_prepare(struct mnlg_socket *nlg, uint8_t cmd,
 					   uint16_t flags, uint32_t id,
 					   uint8_t version)
@@ -55,9 +65,20 @@ struct nlmsghdr *mnlg_msg_prepare(struct mnlg_socket *nlg, uint8_t cmd,
 	return __mnlg_msg_prepare(nlg, cmd, flags, nlg->id, nlg->version);
 }
 
+struct nlmsghdr *mnlg_ctrl_msg_prepare(struct mnlg_socket *nlg, uint8_t cmd,
+				       uint16_t flags)
+{
+	return __mnlg_msg_prepare(nlg, cmd, flags, GENL_ID_CTRL, 1);
+}
+
 int mnlg_socket_send(struct mnlg_socket *nlg, const struct nlmsghdr *nlh)
 {
 	return mnl_socket_sendto(nlg->nl, nlh, nlh->nlmsg_len);
+}
+
+int mnlg_mnl_socket_recvfrom(struct mnlg_socket *nlg)
+{
+	return mnl_socket_recvfrom(nlg->nl, nlg->buf, MNL_SOCKET_BUFFER_SIZE);
 }
 
 int mnlg_socket_recv_run(struct mnlg_socket *nlg, mnl_cb_t data_cb, void *data)
@@ -65,8 +86,7 @@ int mnlg_socket_recv_run(struct mnlg_socket *nlg, mnl_cb_t data_cb, void *data)
 	int err;
 
 	do {
-		err = mnl_socket_recvfrom(nlg->nl, nlg->buf,
-					  MNL_SOCKET_BUFFER_SIZE);
+		err = mnlg_mnl_socket_recvfrom(nlg);
 		if (err <= 0)
 			break;
 		err = mnl_cb_run(nlg->buf, err, nlg->seq, nlg->portid,
@@ -161,8 +181,8 @@ int mnlg_socket_group_add(struct mnlg_socket *nlg, const char *group_name)
 	struct group_info group_info;
 	int err;
 
-	nlh = __mnlg_msg_prepare(nlg, CTRL_CMD_GETFAMILY,
-				 NLM_F_REQUEST | NLM_F_ACK, GENL_ID_CTRL, 1);
+	nlh = mnlg_ctrl_msg_prepare(nlg, CTRL_CMD_GETFAMILY,
+				    NLM_F_REQUEST | NLM_F_ACK);
 	mnl_attr_put_u16(nlh, CTRL_ATTR_FAMILY_ID, nlg->id);
 
 	err = mnlg_socket_send(nlg, nlh);
@@ -245,8 +265,8 @@ struct mnlg_socket *mnlg_socket_open(const char *family_name, uint8_t version)
 
 	nlg->portid = mnl_socket_get_portid(nlg->nl);
 
-	nlh = __mnlg_msg_prepare(nlg, CTRL_CMD_GETFAMILY,
-				 NLM_F_REQUEST | NLM_F_ACK, GENL_ID_CTRL, 1);
+	nlh = mnlg_ctrl_msg_prepare(nlg, CTRL_CMD_GETFAMILY,
+				    NLM_F_REQUEST | NLM_F_ACK);
 	mnl_attr_put_strz(nlh, CTRL_ATTR_FAMILY_NAME, family_name);
 
 	err = mnlg_socket_send(nlg, nlh);

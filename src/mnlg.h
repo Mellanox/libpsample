@@ -16,9 +16,14 @@
 
 struct mnlg_socket;
 
+char *mnlg_socket_buf_get(struct mnlg_socket *nlg);
+uint32_t mnlg_socket_id_get(struct mnlg_socket *nlg);
 struct nlmsghdr *mnlg_msg_prepare(struct mnlg_socket *nlg, uint8_t cmd,
 				  uint16_t flags);
+struct nlmsghdr *mnlg_ctrl_msg_prepare(struct mnlg_socket *nlg, uint8_t cmd,
+				       uint16_t flags);
 int mnlg_socket_send(struct mnlg_socket *nlg, const struct nlmsghdr *nlh);
+int mnlg_mnl_socket_recvfrom(struct mnlg_socket *nlg);
 int mnlg_socket_recv_run(struct mnlg_socket *nlg, mnl_cb_t data_cb, void *data);
 int mnlg_socket_group_add(struct mnlg_socket *nlg, const char *group_name);
 struct mnlg_socket *mnlg_socket_open(const char *family_name, uint8_t version);
