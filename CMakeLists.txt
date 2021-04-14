@@ -13,7 +13,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 ## libpsample library
 add_library (psample SHARED src/psample.c src/mnlg.c)
-target_link_libraries (psample mnl)
+target_link_libraries (psample mnl -lpcap)
 target_include_directories (psample PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set_target_properties (psample PROPERTIES
 	VERSION ${LIBPSAMPLE_MAJOR_VERSION}.${LIBPSAMPLE_MINOR_VERSION}

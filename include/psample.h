@@ -120,4 +120,8 @@ __u32 psample_config_group(const struct psample_config *config);
 __u32 psample_config_group_seq(const struct psample_config *config);
 __u32 psample_config_group_refcount(const struct psample_config *config);
 
+int psample_pcap_init(const char *out_file, struct psample_handle *handle);
+void psample_pcap_fini(struct psample_handle *handle);
+int psample_write_pcap_dispatch(struct psample_handle *handle);
+
 #endif /* __PSAMPLE_H__ */
