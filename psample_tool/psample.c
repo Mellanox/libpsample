@@ -169,6 +169,7 @@ static int show_config_cb(const struct psample_config *config, void *data)
 }
 
 enum command {
+	COMMAND_UNSET,
 	COMMAND_LIST_GROUPS,
 	COMMAND_MONITOR,
 };
@@ -193,6 +194,69 @@ struct psample_tool_options {
 	bool no_sample;
 };
 
+static const char *cmd_str_get(enum command cmd)
+{
+	switch (cmd) {
+	case COMMAND_LIST_GROUPS:
+		return "list-groups";
+	case COMMAND_MONITOR:
+		return "monitor";
+	default:
+		return "unknown command";
+	}
+}
+
+static void
+forbid_several_commands(enum command current_cmd, enum command new_cmd,
+			struct argp_state *state)
+{
+	if (current_cmd == COMMAND_UNSET)
+		return;
+
+	printf("Cant put both %s and %s\n", cmd_str_get(current_cmd),
+	       cmd_str_get(new_cmd));
+	argp_usage(state);
+}
+
+static void
+forbid_argument(bool argument, const char *argument_str, enum command cmd,
+		struct argp_state *state)
+{
+	if (!argument)
+		return;
+
+	printf("Cant put both %s and %s\n", argument_str, cmd_str_get(cmd));
+	argp_usage(state);
+}
+
+static void frobid_no_sample_with_no_config(bool no_sample, bool no_config,
+					    struct argp_state *state)
+{
+	if (!no_sample || !no_config)
+		return;
+
+	printf("Cant put both no-sample and no-config\n");
+	argp_usage(state);
+}
+
+static void
+validate_arguments(struct psample_tool_options *arguments,
+		   struct argp_state *state)
+{
+	switch (arguments->cmd) {
+	case COMMAND_LIST_GROUPS:
+		forbid_argument(arguments->no_config, "no-config",
+				arguments->cmd, state);
+		forbid_argument(arguments->no_sample, "no-sample",
+				arguments->cmd, state);
+		break;
+	case COMMAND_MONITOR:
+		frobid_no_sample_with_no_config(arguments->no_sample,
+						arguments->no_config, state);
+		break;
+	}
+}
+
 static error_t parse_opt(int key, char *arg, struct argp_state *state)
 {
 	/* Get the input argument from argp_parse, which we know is a pointer to
@@ -202,17 +266,12 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 
 	switch (key) {
 	case 'l':
-		if (arguments->no_config) {
-			printf("Cant put both no-config and list-groups\n");
-			argp_usage(state);
-		}
-		if (arguments->no_sample) {
-			printf("Cant put both no-sample and list-groups\n");
-			argp_usage(state);
-		}
+		forbid_several_commands(arguments->cmd, COMMAND_LIST_GROUPS,
+					state);
 		arguments->cmd = COMMAND_LIST_GROUPS;
 		break;
 	case 'm':
+		forbid_several_commands(arguments->cmd, COMMAND_MONITOR, state);
 		arguments->cmd = COMMAND_MONITOR;
 		break;
 	case 'v':
@@ -222,26 +281,15 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 		arguments->group = atoi(arg);
 		break;
 	case 'c':
-		if (arguments->cmd == COMMAND_LIST_GROUPS) {
-			printf("Cant put both no-config and list-groups\n");
-			argp_usage(state);
-		}
-		if (arguments->no_sample) {
-			printf("Cant put both no-sample and no-config\n");
-			argp_usage(state);
-		}
 		arguments->no_config = true;
 		break;
 	case 's':
-		if (arguments->cmd == COMMAND_LIST_GROUPS) {
-			printf("Cant put both no-sample and list-groups\n");
-			argp_usage(state);
-		}
-		if (arguments->no_config) {
-			printf("Cant put both no-sample and no-config\n");
-			argp_usage(state);
-		}
 		arguments->no_sample = true;
+		break;
+	case ARGP_KEY_END:
+		if (arguments->cmd == COMMAND_UNSET)
+			arguments->cmd = COMMAND_MONITOR;
+		validate_arguments(arguments, state);
 		break;
 	default:
 		return ARGP_ERR_UNKNOWN;
@@ -260,7 +308,6 @@ int main(int argc, char **argv)
 	bool first_run = true;
 	int err;
 
-	arguments.cmd = COMMAND_MONITOR;
 	arguments.group = -1;
 	argp_parse(&argp, argc, argv, 0, 0, &arguments);
 
