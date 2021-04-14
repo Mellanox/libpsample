@@ -15,6 +15,9 @@ psample - tool for interacting with packet sampling netlink channel
 .BR psample " " --list-groups
 .ti -8
 
+.BR psample " " --write
+.I OUT_FILE
+
 .SH DESCRIPTION
 The
 .B psample
@@ -35,7 +38,11 @@ mode as presented in the first form above, which makes it output all
 configuration events and samples taken on the system, or in
 .B list-groups
 mode as presented in the second form above, which make it list all current
-sample groups in the system.
+sample groups in the system, or in
+.B write
+mode as presented in the third form above, which make it write the sampled
+packets (include netlink header) in pcap format to file or to
+stdout.
 
 In
 .B monitor
@@ -73,6 +80,14 @@ When on monitor mode, show more information about the sampled packets
 List all current groups in the system, their reference count and their current
 sequence number
 
+.TP
+.BI -w, " " --write " FILE"
+Write packets in pcap format to
+.BI "" FILE "
+or to standard output if
+.BI "" FILE "
+is '-'.
+
 .SH EXAMPLES
 .EX
 # to monitor all sampled packets and config events
@@ -90,9 +105,18 @@ psample --no-sample
 # to show all current groups
 psample --list-groups
 
+# to write packets to file
+psample --write psample.pcap
+
+# to write packets to stdout
+psample --write -
+This option is useful for piping the output to tshark to dissect packets with
+psample dissector.
+
 .EE
 .RE
 .SH SEE ALSO
 .BR tc (8),
 .BR tc-sample (8)
-.BR genl (8)
+.BR genl (8),
+.BR tshark (1)
