@@ -141,7 +141,7 @@ void psample_log(enum psample_log_level level,
 struct psample_handle *psample_open()
 {
 	struct psample_handle *handle;
-	int err;
+	int val, err;
 
 	handle = (struct psample_handle *)calloc(sizeof(*handle), 1);
 	if (!handle) {
@@ -153,6 +153,16 @@ struct psample_handle *psample_open()
 					      PSAMPLE_GENL_VERSION);
 	if (!handle->sample_nlh) {
 		LOG_ERR("Could not open netlink socket");
+		free(handle);
+		return NULL;
+	}
+
+	val = 1;
+	err = mnlg_socket_setsockopt(handle->sample_nlh, NETLINK_NO_ENOBUFS,
+				     &val, sizeof(val));
+	if (err < 0) {
+		LOG_ERR("Could not set NETLINK_NO_ENOBUFS socket option");
+		mnlg_socket_close(handle->sample_nlh);
 		free(handle);
 		return NULL;
 	}

@@ -26,6 +26,8 @@ int mnlg_socket_send(struct mnlg_socket *nlg, const struct nlmsghdr *nlh);
 int mnlg_mnl_socket_recvfrom(struct mnlg_socket *nlg);
 int mnlg_socket_recv_run(struct mnlg_socket *nlg, mnl_cb_t data_cb, void *data);
 int mnlg_socket_group_add(struct mnlg_socket *nlg, const char *group_name);
+int mnlg_socket_setsockopt(struct mnlg_socket *nlg, int optname, void *optval,
+			   socklen_t optlen);
 struct mnlg_socket *mnlg_socket_open(const char *family_name, uint8_t version);
 void mnlg_socket_close(struct mnlg_socket *nlg);
 int mnlg_socket_get_fd(struct mnlg_socket *nlg);

@@ -208,6 +208,13 @@ int mnlg_socket_group_add(struct mnlg_socket *nlg, const char *group_name)
 	return 0;
 }
 
+int mnlg_socket_setsockopt(struct mnlg_socket *nlg, int optname, void *optval,
+			   socklen_t optlen)
+{
+	return mnl_socket_setsockopt(nlg->nl, NETLINK_NO_ENOBUFS, optval,
+				     optlen);
+}
+
 int mnlg_socket_get_fd(struct mnlg_socket *nlg)
 {
 	return mnl_socket_get_fd(nlg->nl);
